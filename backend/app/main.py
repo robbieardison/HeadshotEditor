@@ -26,10 +26,14 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://[::1]:5173",
     ],
+    # Local dev: Vite may use 5174+ if 5173 is taken; [::1] vs localhost are different origins.
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1|\[::1\]):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Content-Disposition"],
 )
 
 

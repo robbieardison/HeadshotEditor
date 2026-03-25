@@ -6,14 +6,17 @@ HeadshotEditor — Python-only pipeline: rembg matting + circular plate composit
 Example:
   python headshot_cli.py -i ~/Photos/portrait.jpg
   python headshot_cli.py -i ./in.png -o ./out.png --bg-color "#1a4d8c"
+  python headshot_cli.py -i ./in.png --plate-fill linear --gradient-angle 90
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 from io import BytesIO
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from rembg import remove
 
@@ -25,11 +28,76 @@ def hex_to_rgb(h: str) -> tuple[int, int, int]:
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
+def make_plate_layer(
+    w: int,
+    h: int,
+    cx: float,
+    cy: float,
+    r: float,
+    plate_fill: str,
+    bg_color: str,
+    bg_color_2: str,
+    gradient_angle_deg: float,
+) -> Image.Image:
+    """Solid fill or polarized linear/radial gradient inside the circle (matches web UI)."""
+    rgb1 = hex_to_rgb(bg_color)
+    rgb2 = hex_to_rgb(bg_color_2)
+    if plate_fill == "solid":
+        plate = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        pd = ImageDraw.Draw(plate)
+        pd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*rgb1, 255))
+        return plate
+
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+    dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    mask = dist <= r
+
+    if plate_fill == "radial":
+        t = np.zeros_like(dist)
+        inside = mask & (dist > 1e-9)
+        t[inside] = np.clip(dist[inside] / r, 0.0, 1.0)
+        rch = rgb1[0] + (rgb2[0] - rgb1[0]) * t
+        gch = rgb1[1] + (rgb2[1] - rgb1[1]) * t
+        bch = rgb1[2] + (rgb2[2] - rgb1[2]) * t
+    elif plate_fill == "linear":
+        rad = math.radians(gradient_angle_deg)
+        x1 = cx + math.cos(rad) * r
+        y1 = cy + math.sin(rad) * r
+        x2 = cx - math.cos(rad) * r
+        y2 = cy - math.sin(rad) * r
+        vx, vy = x1 - x2, y1 - y2
+        l2 = vx * vx + vy * vy
+        if l2 < 1e-12:
+            l2 = 1.0
+        t = ((xx - x2) * vx + (yy - y2) * vy) / l2
+        t = np.clip(t, 0.0, 1.0)
+        rch = rgb1[0] + (rgb2[0] - rgb1[0]) * t
+        gch = rgb1[1] + (rgb2[1] - rgb1[1]) * t
+        bch = rgb1[2] + (rgb2[2] - rgb1[2]) * t
+    else:
+        raise ValueError(f"Unknown plate_fill: {plate_fill!r}")
+
+    alpha = np.where(mask, 255, 0).astype(np.uint8)
+    rgba = np.stack(
+        [
+            np.clip(rch, 0, 255),
+            np.clip(gch, 0, 255),
+            np.clip(bch, 0, 255),
+            alpha.astype(np.float64),
+        ],
+        axis=-1,
+    ).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA")
+
+
 def composite(
     cutout: Image.Image,
     *,
     size: int = 800,
     bg_color: str = "#2d6cdf",
+    bg_color_2: str = "#38bdf8",
+    plate_fill: str = "solid",
+    gradient_angle_deg: float = 135.0,
     circle_radius_pct: float = 28.0,
     circle_center_y: float = 0.62,
     subject_scale: float = 1.05,
@@ -68,10 +136,9 @@ def composite(
         shadow = shadow.filter(ImageFilter.GaussianBlur(radius=blur_r))
         out = Image.alpha_composite(out, shadow)
 
-    plate = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    pd = ImageDraw.Draw(plate)
-    rgb = hex_to_rgb(bg_color)
-    pd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*rgb, 255))
+    plate = make_plate_layer(
+        w, h, cx, cy, r, plate_fill, bg_color, bg_color_2, gradient_angle_deg
+    )
     out = Image.alpha_composite(out, plate)
 
     cutout = cutout.convert("RGBA")
@@ -119,7 +186,24 @@ def parse_args() -> argparse.Namespace:
         help="Output PNG path. Default: <input_stem>_headshot.png next to the input file.",
     )
     p.add_argument("--size", type=int, default=800, help="Canvas size (square pixels).")
-    p.add_argument("--bg-color", default="#2d6cdf", help="Plate fill color #RRGGBB.")
+    p.add_argument("--bg-color", default="#2d6cdf", help="Plate color A (or solid fill) #RRGGBB.")
+    p.add_argument(
+        "--bg-color-2",
+        default="#38bdf8",
+        help="Plate color B for polarized gradients #RRGGBB.",
+    )
+    p.add_argument(
+        "--plate-fill",
+        choices=("solid", "linear", "radial"),
+        default="solid",
+        help="Solid color or polarized linear/radial gradient on the circle.",
+    )
+    p.add_argument(
+        "--gradient-angle",
+        type=float,
+        default=135.0,
+        help="Linear gradient angle in degrees (0–360). Ignored for solid/radial.",
+    )
     p.add_argument(
         "--circle-radius-pct",
         type=float,
@@ -165,6 +249,9 @@ def main() -> None:
         cutout,
         size=args.size,
         bg_color=args.bg_color,
+        bg_color_2=args.bg_color_2,
+        plate_fill=args.plate_fill,
+        gradient_angle_deg=args.gradient_angle,
         circle_radius_pct=args.circle_radius_pct,
         circle_center_y=args.circle_center_y,
         subject_scale=args.subject_scale,

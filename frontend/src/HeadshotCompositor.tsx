@@ -8,6 +8,34 @@ export type CompositorProps = {
   originalFileName?: string | null;
 };
 
+function getPlateFillStyle(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  mode: "solid" | "linear" | "radial",
+  c1: string,
+  c2: string,
+  angleDeg: number,
+): CanvasGradient | string {
+  if (mode === "solid") return c1;
+  if (mode === "radial") {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    return g;
+  }
+  const rad = (angleDeg * Math.PI) / 180;
+  const x1 = cx + Math.cos(rad) * r;
+  const y1 = cy + Math.sin(rad) * r;
+  const x2 = cx - Math.cos(rad) * r;
+  const y2 = cy - Math.sin(rad) * r;
+  const g = ctx.createLinearGradient(x1, y1, x2, y2);
+  g.addColorStop(0, c1);
+  g.addColorStop(1, c2);
+  return g;
+}
+
 function downloadFilename(original: string | null | undefined): string {
   if (!original?.trim()) return "headshot.png";
   const base = original.replace(/\.[^./\\]+$/, "").trim();
@@ -23,6 +51,12 @@ export function HeadshotCompositor({
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const [bgColor, setBgColor] = useState("#2d6cdf");
+  /** Second stop for polarized (linear / radial) gradients */
+  const [bgColor2, setBgColor2] = useState("#38bdf8");
+  const [plateFillMode, setPlateFillMode] = useState<
+    "solid" | "linear" | "radial"
+  >("solid");
+  const [gradientAngleDeg, setGradientAngleDeg] = useState(135);
   const [circleRadiusPct, setCircleRadiusPct] = useState(28);
   const [circleCenterYNorm, setCircleCenterYNorm] = useState(0.62);
   const [subjectScale, setSubjectScale] = useState(1.05);
@@ -67,7 +101,16 @@ export function HeadshotCompositor({
     ctx.shadowOffsetY = plateOffY;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = bgColor;
+    ctx.fillStyle = getPlateFillStyle(
+      ctx,
+      cx,
+      cy,
+      r,
+      plateFillMode,
+      bgColor,
+      bgColor2,
+      gradientAngleDeg,
+    );
     ctx.fill();
     ctx.restore();
 
@@ -88,6 +131,9 @@ export function HeadshotCompositor({
     ctx.restore();
   }, [
     bgColor,
+    bgColor2,
+    plateFillMode,
+    gradientAngleDeg,
     circleRadiusPct,
     circleCenterYNorm,
     subjectScale,
@@ -144,13 +190,50 @@ export function HeadshotCompositor({
       <div className="compositor__controls">
         <h2 className="compositor__h2">Plate &amp; color</h2>
         <label className="field">
-          <span>Background color</span>
+          <span>Plate fill</span>
+          <select
+            value={plateFillMode}
+            onChange={(e) =>
+              setPlateFillMode(e.target.value as "solid" | "linear" | "radial")
+            }
+          >
+            <option value="solid">Solid</option>
+            <option value="linear">Polarized (linear gradient)</option>
+            <option value="radial">Polarized (radial gradient)</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>
+            {plateFillMode === "solid" ? "Background color" : "Color A"}
+          </span>
           <input
             type="color"
             value={bgColor}
             onChange={(e) => setBgColor(e.target.value)}
           />
         </label>
+        {plateFillMode !== "solid" ? (
+          <label className="field">
+            <span>Color B</span>
+            <input
+              type="color"
+              value={bgColor2}
+              onChange={(e) => setBgColor2(e.target.value)}
+            />
+          </label>
+        ) : null}
+        {plateFillMode === "linear" ? (
+          <label className="field">
+            <span>Gradient angle ({gradientAngleDeg}°)</span>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              value={gradientAngleDeg}
+              onChange={(e) => setGradientAngleDeg(Number(e.target.value))}
+            />
+          </label>
+        ) : null}
         <label className="field">
           <span>Circle radius ({circleRadiusPct}% of min side)</span>
           <input
