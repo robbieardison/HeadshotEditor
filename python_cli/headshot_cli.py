@@ -100,6 +100,7 @@ def composite(
     gradient_angle_deg: float = 135.0,
     circle_radius_pct: float = 28.0,
     circle_center_y: float = 0.62,
+    subject_center_y: float = 0.62,
     subject_scale: float = 1.05,
     subject_y_offset: float = 0.0,
     plate_blur: float = 28.0,
@@ -115,7 +116,8 @@ def composite(
     w = h = size
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     cx = w / 2
-    cy = h * circle_center_y
+    cy_plate = h * circle_center_y
+    subject_cy = h * subject_center_y
     r = min(w, h) * circle_radius_pct / 100.0
 
     if plate_opacity > 0:
@@ -124,9 +126,9 @@ def composite(
         dr.ellipse(
             [
                 cx - r + plate_off_x,
-                cy - r + plate_off_y,
+                cy_plate - r + plate_off_y,
                 cx + r + plate_off_x,
-                cy + r + plate_off_y,
+                cy_plate + r + plate_off_y,
             ],
             fill=(0, 0, 0, 255),
         )
@@ -137,7 +139,7 @@ def composite(
         out = Image.alpha_composite(out, shadow)
 
     plate = make_plate_layer(
-        w, h, cx, cy, r, plate_fill, bg_color, bg_color_2, gradient_angle_deg
+        w, h, cx, cy_plate, r, plate_fill, bg_color, bg_color_2, gradient_angle_deg
     )
     out = Image.alpha_composite(out, plate)
 
@@ -148,7 +150,7 @@ def composite(
     draw_h = max(1, int(round(draw_w * ih / iw)))
     resized = cutout.resize((draw_w, draw_h), Image.Resampling.LANCZOS)
     draw_x = int(round(cx - draw_w / 2))
-    draw_y = int(round(cy + r * 0.42 - draw_h + subject_y_offset))
+    draw_y = int(round(subject_cy + r * 0.42 - draw_h + subject_y_offset))
 
     if sub_opacity > 0:
         alpha = resized.split()[3]
@@ -214,7 +216,13 @@ def parse_args() -> argparse.Namespace:
         "--circle-center-y",
         type=float,
         default=0.62,
-        help="Vertical position of circle center (0–1).",
+        help="Vertical position of plate center (0–1). Does not move the subject.",
+    )
+    p.add_argument(
+        "--subject-center-y",
+        type=float,
+        default=0.62,
+        help="Vertical anchor for the subject (0–1). Independent of --circle-center-y.",
     )
     p.add_argument("--subject-scale", type=float, default=1.05)
     p.add_argument("--subject-y-offset", type=float, default=0.0)
@@ -254,6 +262,7 @@ def main() -> None:
         gradient_angle_deg=args.gradient_angle,
         circle_radius_pct=args.circle_radius_pct,
         circle_center_y=args.circle_center_y,
+        subject_center_y=args.subject_center_y,
         subject_scale=args.subject_scale,
         subject_y_offset=args.subject_y_offset,
         plate_blur=args.plate_blur,

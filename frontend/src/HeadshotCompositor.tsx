@@ -58,7 +58,10 @@ export function HeadshotCompositor({
   >("solid");
   const [gradientAngleDeg, setGradientAngleDeg] = useState(135);
   const [circleRadiusPct, setCircleRadiusPct] = useState(28);
+  /** Vertical center of the circular plate only (does not move the subject). */
   const [circleCenterYNorm, setCircleCenterYNorm] = useState(0.62);
+  /** Vertical anchor for subject placement (independent of plate position). */
+  const [subjectAnchorYNorm, setSubjectAnchorYNorm] = useState(0.62);
   const [subjectScale, setSubjectScale] = useState(1.05);
   const [subjectYOffset, setSubjectYOffset] = useState(0);
 
@@ -91,7 +94,8 @@ export function HeadshotCompositor({
     ctx.clearRect(0, 0, w, h);
 
     const cx = w / 2;
-    const cy = h * circleCenterYNorm;
+    const cyPlate = h * circleCenterYNorm;
+    const subjectCy = h * subjectAnchorYNorm;
     const r = (Math.min(w, h) * circleRadiusPct) / 100;
 
     ctx.save();
@@ -100,11 +104,11 @@ export function HeadshotCompositor({
     ctx.shadowOffsetX = plateOffX;
     ctx.shadowOffsetY = plateOffY;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(cx, cyPlate, r, 0, Math.PI * 2);
     ctx.fillStyle = getPlateFillStyle(
       ctx,
       cx,
-      cy,
+      cyPlate,
       r,
       plateFillMode,
       bgColor,
@@ -120,7 +124,7 @@ export function HeadshotCompositor({
     const drawW = baseW;
     const drawH = (drawW * ih) / iw;
     const drawX = cx - drawW / 2;
-    const drawY = cy + r * 0.42 - drawH + subjectYOffset;
+    const drawY = subjectCy + r * 0.42 - drawH + subjectYOffset;
 
     ctx.save();
     ctx.shadowColor = `rgba(0,0,0,${subOpacity})`;
@@ -136,6 +140,7 @@ export function HeadshotCompositor({
     gradientAngleDeg,
     circleRadiusPct,
     circleCenterYNorm,
+    subjectAnchorYNorm,
     subjectScale,
     subjectYOffset,
     plateBlur,
@@ -245,7 +250,7 @@ export function HeadshotCompositor({
           />
         </label>
         <label className="field">
-          <span>Circle vertical position</span>
+          <span>Circle vertical position (plate only)</span>
           <input
             type="range"
             min={45}
@@ -258,6 +263,18 @@ export function HeadshotCompositor({
         </label>
 
         <h2 className="compositor__h2">Subject</h2>
+        <label className="field">
+          <span>Subject vertical position</span>
+          <input
+            type="range"
+            min={45}
+            max={78}
+            value={Math.round(subjectAnchorYNorm * 100)}
+            onChange={(e) =>
+              setSubjectAnchorYNorm(Number(e.target.value) / 100)
+            }
+          />
+        </label>
         <label className="field">
           <span>Scale ({subjectScale.toFixed(2)})</span>
           <input
