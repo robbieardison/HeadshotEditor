@@ -37,8 +37,25 @@ Open the URL shown (typically `http://localhost:5173`). Keep the API running on 
 
 To open this project in Cursor alongside your other repos: **File → Add Folder to Workspace** and choose `Documents/projects/HeadshotEditor` (or the full path on your machine).
 
+## Python CLI (no frontend or backend)
+
+From [`python_cli/`](python_cli/): same matting + circular plate + shadows, entirely in one script. Paths come from **arguments** (or defaults next to the input file), not from anything hardcoded in the repo.
+
+```bash
+cd python_cli
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python headshot_cli.py -i /path/to/your/photo.jpg
+# writes /path/to/your/photo_headshot.png
+
+python headshot_cli.py -i ./in.png -o ./custom_out.png --bg-color "#1a4d8c"
+```
+
+Use `python headshot_cli.py --help` for plate/subject tuning flags (defaults match the web UI).
+
 ## Project layout
 
 - `backend/` — FastAPI app and `rembg` integration
 - `frontend/` — React UI, canvas compositor, PNG download
-# HeadshotEditor
+- `python_cli/` — `headshot_cli.py` only (rembg + Pillow compositing)

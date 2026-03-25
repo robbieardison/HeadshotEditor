@@ -5,6 +5,7 @@ import "./App.css";
 
 export default function App() {
   const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
+  const [originalFileName, setOriginalFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ export default function App() {
     if (!file) return;
     setError(null);
     setBusy(true);
+    setOriginalFileName(file.name);
     setCutoutUrl(null);
     try {
       const blob = await removeBackground(file);
@@ -59,7 +61,10 @@ export default function App() {
       </section>
 
       {cutoutUrl ? (
-        <HeadshotCompositor imageSource={cutoutUrl} />
+        <HeadshotCompositor
+          imageSource={cutoutUrl}
+          originalFileName={originalFileName}
+        />
       ) : (
         !busy && (
           <p className="app__hint">

@@ -4,9 +4,21 @@ const LOGICAL_SIZE = 800;
 
 export type CompositorProps = {
   imageSource: string;
+  /** Used for the download filename; not a filesystem path. */
+  originalFileName?: string | null;
 };
 
-export function HeadshotCompositor({ imageSource }: CompositorProps) {
+function downloadFilename(original: string | null | undefined): string {
+  if (!original?.trim()) return "headshot.png";
+  const base = original.replace(/\.[^./\\]+$/, "").trim();
+  const safe = base.replace(/[\\/:*?"<>|]/g, "_");
+  return `${safe || "headshot"}_headshot.png`;
+}
+
+export function HeadshotCompositor({
+  imageSource,
+  originalFileName,
+}: CompositorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
@@ -113,11 +125,11 @@ export function HeadshotCompositor({ imageSource }: CompositorProps) {
   const exportPng = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.toBlob((blob) => {
+    canvas.toBlob((blob: Blob | null) => {
       if (!blob) return;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "headshot.png";
+      a.download = downloadFilename(originalFileName);
       a.click();
       URL.revokeObjectURL(a.href);
     }, "image/png");
