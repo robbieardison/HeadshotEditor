@@ -36,6 +36,32 @@ function getPlateFillStyle(
   return g;
 }
 
+/** Preview-only overlay (not drawn on canvas — exports stay clean). */
+function AlignmentGuides({ size }: { size: number }) {
+  const t = size / 3;
+  const c = size / 2;
+  const thirds = "rgba(255,255,255,0.2)";
+  const center = "rgba(255,255,255,0.42)";
+  const dash = "rgba(255,255,255,0.12)";
+  return (
+    <svg
+      className="compositor__guides"
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-hidden
+    >
+      <line x1={t} y1={0} x2={t} y2={size} stroke={thirds} strokeWidth={1} />
+      <line x1={2 * t} y1={0} x2={2 * t} y2={size} stroke={thirds} strokeWidth={1} />
+      <line x1={0} y1={t} x2={size} y2={t} stroke={thirds} strokeWidth={1} />
+      <line x1={0} y1={2 * t} x2={size} y2={2 * t} stroke={thirds} strokeWidth={1} />
+      <line x1={c} y1={0} x2={c} y2={size} stroke={center} strokeWidth={1} />
+      <line x1={0} y1={c} x2={size} y2={c} stroke={center} strokeWidth={1} />
+      <circle cx={c} cy={c} r={4} fill="none" stroke={dash} strokeWidth={1} />
+    </svg>
+  );
+}
+
 function downloadFilename(original: string | null | undefined): string {
   if (!original?.trim()) return "headshot.png";
   const base = original.replace(/\.[^./\\]+$/, "").trim();
@@ -74,6 +100,8 @@ export function HeadshotCompositor({
   const [subOffX, setSubOffX] = useState(0);
   const [subOffY, setSubOffY] = useState(10);
   const [subOpacity, setSubOpacity] = useState(0.28);
+
+  const [showAlignmentGuides, setShowAlignmentGuides] = useState(true);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -190,9 +218,24 @@ export function HeadshotCompositor({
     <div className="compositor">
       <div className="compositor__canvas-wrap">
         <canvas ref={canvasRef} className="compositor__canvas" />
+        {showAlignmentGuides ? (
+          <AlignmentGuides size={LOGICAL_SIZE} />
+        ) : null}
       </div>
 
       <div className="compositor__controls">
+        <label className="field field--checkbox">
+          <input
+            type="checkbox"
+            checked={showAlignmentGuides}
+            onChange={(e) => setShowAlignmentGuides(e.target.checked)}
+          />
+          <span>Alignment guides (⅓ grid + center crosshair)</span>
+        </label>
+        <p className="compositor__guides-note">
+          Guides are preview-only; they are not included in the downloaded PNG.
+        </p>
+
         <h2 className="compositor__h2">Plate &amp; color</h2>
         <label className="field">
           <span>Plate fill</span>

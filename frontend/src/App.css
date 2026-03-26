@@ -108,6 +108,37 @@
   display: block;
 }
 
+.compositor__guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.compositor__guides-note {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #6b7588;
+}
+
+.field--checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.field--checkbox input {
+  margin-top: 0.2rem;
+  accent-color: #4a7fd4;
+}
+
+.field--checkbox span {
+  color: #b4bcc8;
+  line-height: 1.35;
+}
+
 .compositor__controls {
   display: flex;
   flex-direction: column;
