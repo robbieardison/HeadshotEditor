@@ -4,6 +4,8 @@ import { HeadshotCompositor } from "./HeadshotCompositor";
 import "./App.css";
 
 export default function App() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
   const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
   const [originalFileName, setOriginalFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -11,25 +13,37 @@ export default function App() {
 
   useEffect(() => {
     return () => {
+      if (originalPreviewUrl) URL.revokeObjectURL(originalPreviewUrl);
       if (cutoutUrl) URL.revokeObjectURL(cutoutUrl);
     };
-  }, [cutoutUrl]);
+  }, [originalPreviewUrl, cutoutUrl]);
 
-  const onFile = useCallback(async (file: File | null) => {
+  const onFileSelected = useCallback((file: File | null) => {
     if (!file) return;
+    setSelectedFile(file);
     setError(null);
-    setBusy(true);
     setOriginalFileName(file.name);
     setCutoutUrl(null);
+    setOriginalPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }, []);
+
+  const onRemoveBackground = useCallback(async () => {
+    if (!selectedFile) return;
+    setError(null);
+    setBusy(true);
+    setCutoutUrl(null);
     try {
-      const blob = await removeBackground(file);
+      const blob = await removeBackground(selectedFile);
       setCutoutUrl(URL.createObjectURL(blob));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Background removal failed.");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [selectedFile]);
 
   return (
     <div className="app">
@@ -49,7 +63,7 @@ export default function App() {
             disabled={busy}
             onChange={(e) => {
               const f = e.target.files?.[0];
-              void onFile(f ?? null);
+              onFileSelected(f ?? null);
               e.target.value = "";
             }}
           />
@@ -60,11 +74,43 @@ export default function App() {
         {error ? <p className="app__error">{error}</p> : null}
       </section>
 
-      {cutoutUrl ? (
-        <HeadshotCompositor
-          imageSource={cutoutUrl}
-          originalFileName={originalFileName}
-        />
+      {originalPreviewUrl ? (
+        <section className="app__preview">
+          <div className="app__preview-header">
+            <h2 className="app__subtitle">
+              {cutoutUrl ? "After (background removed)" : "Before (original)"}
+            </h2>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={busy || !!cutoutUrl}
+              onClick={() => {
+                void onRemoveBackground();
+              }}
+            >
+              {busy
+                ? "Removing background..."
+                : cutoutUrl
+                  ? "Background removed"
+                  : "Remove background"}
+            </button>
+          </div>
+
+          <div className="app__preview-body">
+            {cutoutUrl ? (
+              <HeadshotCompositor
+                imageSource={cutoutUrl}
+                originalFileName={originalFileName}
+              />
+            ) : (
+              <img
+                className="app__original-image"
+                src={originalPreviewUrl}
+                alt="Original upload preview"
+              />
+            )}
+          </div>
+        </section>
       ) : (
         !busy && (
           <p className="app__hint">

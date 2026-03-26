@@ -27,6 +27,41 @@
   margin-bottom: 2rem;
 }
 
+.app__preview {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.app__preview-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.app__preview-body {
+  display: flex;
+  align-items: flex-start;
+}
+
+.app__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #aeb7c6;
+}
+
+.app__original-image {
+  width: min(100%, 460px);
+  border-radius: 10px;
+  border: 1px solid #2a3344;
+  background: #111827;
+  object-fit: contain;
+}
+
 .upload-zone {
   display: inline-flex;
   align-items: center;
@@ -214,4 +249,9 @@
 
 .btn-primary:active {
   filter: brightness(0.96);
+}
+
+.btn-primary:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
 }

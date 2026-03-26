@@ -36,6 +36,39 @@ function getPlateFillStyle(
   return g;
 }
 
+function getOuterFillStyle(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  mode: "solid" | "linear" | "radial",
+  c1: string,
+  c2: string,
+  angleDeg: number,
+): CanvasGradient | string {
+  if (mode === "solid") return c1;
+  if (mode === "radial") {
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = Math.max(w, h) * 0.75;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    return g;
+  }
+  const rad = (angleDeg * Math.PI) / 180;
+  const cx = w / 2;
+  const cy = h / 2;
+  const reach = Math.hypot(w, h) / 2;
+  const x1 = cx + Math.cos(rad) * reach;
+  const y1 = cy + Math.sin(rad) * reach;
+  const x2 = cx - Math.cos(rad) * reach;
+  const y2 = cy - Math.sin(rad) * reach;
+  const g = ctx.createLinearGradient(x1, y1, x2, y2);
+  g.addColorStop(0, c1);
+  g.addColorStop(1, c2);
+  return g;
+}
+
 /** Preview-only overlay (not drawn on canvas — exports stay clean). */
 function AlignmentGuides({ size }: { size: number }) {
   const t = size / 3;
@@ -76,6 +109,7 @@ export function HeadshotCompositor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
+  const [outerEnabled, setOuterEnabled] = useState(false);
   const [bgColor, setBgColor] = useState("#2d6cdf");
   /** Second stop for polarized (linear / radial) gradients */
   const [bgColor2, setBgColor2] = useState("#38bdf8");
@@ -83,6 +117,12 @@ export function HeadshotCompositor({
     "solid" | "linear" | "radial"
   >("solid");
   const [gradientAngleDeg, setGradientAngleDeg] = useState(135);
+  const [outerBgColor, setOuterBgColor] = useState("#0f172a");
+  const [outerBgColor2, setOuterBgColor2] = useState("#1e293b");
+  const [outerFillMode, setOuterFillMode] = useState<
+    "solid" | "linear" | "radial"
+  >("solid");
+  const [outerGradientAngleDeg, setOuterGradientAngleDeg] = useState(120);
   const [circleRadiusPct, setCircleRadiusPct] = useState(28);
   /** Vertical center of the circular plate only (does not move the subject). */
   const [circleCenterYNorm, setCircleCenterYNorm] = useState(0.62);
@@ -120,6 +160,18 @@ export function HeadshotCompositor({
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+    if (outerEnabled) {
+      ctx.fillStyle = getOuterFillStyle(
+        ctx,
+        w,
+        h,
+        outerFillMode,
+        outerBgColor,
+        outerBgColor2,
+        outerGradientAngleDeg,
+      );
+      ctx.fillRect(0, 0, w, h);
+    }
 
     const cx = w / 2;
     const cyPlate = h * circleCenterYNorm;
@@ -166,6 +218,11 @@ export function HeadshotCompositor({
     bgColor2,
     plateFillMode,
     gradientAngleDeg,
+    outerEnabled,
+    outerBgColor,
+    outerBgColor2,
+    outerFillMode,
+    outerGradientAngleDeg,
     circleRadiusPct,
     circleCenterYNorm,
     subjectAnchorYNorm,
@@ -237,6 +294,67 @@ export function HeadshotCompositor({
         </p>
 
         <h2 className="compositor__h2">Plate &amp; color</h2>
+        <label className="field field--checkbox">
+          <input
+            type="checkbox"
+            checked={outerEnabled}
+            onChange={(e) => setOuterEnabled(e.target.checked)}
+          />
+          <span>Outer background</span>
+        </label>
+        <p className="compositor__guides-note">
+          When disabled, the area outside the plate stays transparent (you’ll
+          see the checkerboard preview).
+        </p>
+        {outerEnabled ? (
+          <>
+        <label className="field">
+          <span>Outer background fill</span>
+          <select
+            value={outerFillMode}
+            onChange={(e) =>
+              setOuterFillMode(e.target.value as "solid" | "linear" | "radial")
+            }
+          >
+            <option value="solid">Solid</option>
+            <option value="linear">Polarized (linear gradient)</option>
+            <option value="radial">Polarized (radial gradient)</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>{outerFillMode === "solid" ? "Outer color" : "Outer color A"}</span>
+          <input
+            type="color"
+            value={outerBgColor}
+            onChange={(e) => setOuterBgColor(e.target.value)}
+          />
+        </label>
+        {outerFillMode !== "solid" ? (
+          <label className="field">
+            <span>Outer color B</span>
+            <input
+              type="color"
+              value={outerBgColor2}
+              onChange={(e) => setOuterBgColor2(e.target.value)}
+            />
+          </label>
+        ) : null}
+        {outerFillMode === "linear" ? (
+          <label className="field">
+            <span>Outer gradient angle ({outerGradientAngleDeg}°)</span>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              value={outerGradientAngleDeg}
+              onChange={(e) => setOuterGradientAngleDeg(Number(e.target.value))}
+            />
+          </label>
+        ) : null}
+          </>
+        ) : null}
+
+        <h2 className="compositor__h2">Circular plate</h2>
         <label className="field">
           <span>Plate fill</span>
           <select
