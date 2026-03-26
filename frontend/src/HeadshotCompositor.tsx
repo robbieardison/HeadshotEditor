@@ -110,6 +110,7 @@ export function HeadshotCompositor({
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   const [outerEnabled, setOuterEnabled] = useState(false);
+  const [plateEnabled, setPlateEnabled] = useState(true);
   const [bgColor, setBgColor] = useState("#2d6cdf");
   /** Second stop for polarized (linear / radial) gradients */
   const [bgColor2, setBgColor2] = useState("#38bdf8");
@@ -178,25 +179,27 @@ export function HeadshotCompositor({
     const subjectCy = h * subjectAnchorYNorm;
     const r = (Math.min(w, h) * circleRadiusPct) / 100;
 
-    ctx.save();
-    ctx.shadowColor = `rgba(0,0,0,${plateOpacity})`;
-    ctx.shadowBlur = plateBlur;
-    ctx.shadowOffsetX = plateOffX;
-    ctx.shadowOffsetY = plateOffY;
-    ctx.beginPath();
-    ctx.arc(cx, cyPlate, r, 0, Math.PI * 2);
-    ctx.fillStyle = getPlateFillStyle(
-      ctx,
-      cx,
-      cyPlate,
-      r,
-      plateFillMode,
-      bgColor,
-      bgColor2,
-      gradientAngleDeg,
-    );
-    ctx.fill();
-    ctx.restore();
+    if (plateEnabled) {
+      ctx.save();
+      ctx.shadowColor = `rgba(0,0,0,${plateOpacity})`;
+      ctx.shadowBlur = plateBlur;
+      ctx.shadowOffsetX = plateOffX;
+      ctx.shadowOffsetY = plateOffY;
+      ctx.beginPath();
+      ctx.arc(cx, cyPlate, r, 0, Math.PI * 2);
+      ctx.fillStyle = getPlateFillStyle(
+        ctx,
+        cx,
+        cyPlate,
+        r,
+        plateFillMode,
+        bgColor,
+        bgColor2,
+        gradientAngleDeg,
+      );
+      ctx.fill();
+      ctx.restore();
+    }
 
     const iw = img.naturalWidth;
     const ih = img.naturalHeight;
@@ -216,6 +219,7 @@ export function HeadshotCompositor({
   }, [
     bgColor,
     bgColor2,
+    plateEnabled,
     plateFillMode,
     gradientAngleDeg,
     outerEnabled,
@@ -355,6 +359,16 @@ export function HeadshotCompositor({
         ) : null}
 
         <h2 className="compositor__h2">Circular plate</h2>
+        <label className="field field--checkbox">
+          <input
+            type="checkbox"
+            checked={plateEnabled}
+            onChange={(e) => setPlateEnabled(e.target.checked)}
+          />
+          <span>Show circular plate</span>
+        </label>
+        {plateEnabled ? (
+          <>
         <label className="field">
           <span>Plate fill</span>
           <select
@@ -422,6 +436,8 @@ export function HeadshotCompositor({
             }
           />
         </label>
+          </>
+        ) : null}
 
         <h2 className="compositor__h2">Subject</h2>
         <label className="field">
@@ -457,7 +473,9 @@ export function HeadshotCompositor({
           />
         </label>
 
-        <h2 className="compositor__h2">Circular plate shadow</h2>
+        {plateEnabled ? <h2 className="compositor__h2">Circular plate shadow</h2> : null}
+        {plateEnabled ? (
+          <>
         <label className="field">
           <span>Blur ({plateBlur}px)</span>
           <input
@@ -498,6 +516,8 @@ export function HeadshotCompositor({
             onChange={(e) => setPlateOpacity(Number(e.target.value) / 100)}
           />
         </label>
+          </>
+        ) : null}
 
         <h2 className="compositor__h2">Subject shadow</h2>
         <label className="field">

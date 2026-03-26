@@ -94,6 +94,7 @@ def composite(
     cutout: Image.Image,
     *,
     size: int = 800,
+    plate_enabled: bool = True,
     bg_color: str = "#2d6cdf",
     bg_color_2: str = "#38bdf8",
     plate_fill: str = "solid",
@@ -120,28 +121,29 @@ def composite(
     subject_cy = h * subject_center_y
     r = min(w, h) * circle_radius_pct / 100.0
 
-    if plate_opacity > 0:
-        shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        dr = ImageDraw.Draw(shadow)
-        dr.ellipse(
-            [
-                cx - r + plate_off_x,
-                cy_plate - r + plate_off_y,
-                cx + r + plate_off_x,
-                cy_plate + r + plate_off_y,
-            ],
-            fill=(0, 0, 0, 255),
-        )
-        alpha = shadow.split()[3]
-        shadow.putalpha(alpha.point(lambda p: int(p * plate_opacity)))
-        blur_r = max(0.5, plate_blur / 2.0)
-        shadow = shadow.filter(ImageFilter.GaussianBlur(radius=blur_r))
-        out = Image.alpha_composite(out, shadow)
+    if plate_enabled:
+        if plate_opacity > 0:
+            shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            dr = ImageDraw.Draw(shadow)
+            dr.ellipse(
+                [
+                    cx - r + plate_off_x,
+                    cy_plate - r + plate_off_y,
+                    cx + r + plate_off_x,
+                    cy_plate + r + plate_off_y,
+                ],
+                fill=(0, 0, 0, 255),
+            )
+            alpha = shadow.split()[3]
+            shadow.putalpha(alpha.point(lambda p: int(p * plate_opacity)))
+            blur_r = max(0.5, plate_blur / 2.0)
+            shadow = shadow.filter(ImageFilter.GaussianBlur(radius=blur_r))
+            out = Image.alpha_composite(out, shadow)
 
-    plate = make_plate_layer(
-        w, h, cx, cy_plate, r, plate_fill, bg_color, bg_color_2, gradient_angle_deg
-    )
-    out = Image.alpha_composite(out, plate)
+        plate = make_plate_layer(
+            w, h, cx, cy_plate, r, plate_fill, bg_color, bg_color_2, gradient_angle_deg
+        )
+        out = Image.alpha_composite(out, plate)
 
     cutout = cutout.convert("RGBA")
     iw, ih = cutout.size
@@ -188,6 +190,11 @@ def parse_args() -> argparse.Namespace:
         help="Output PNG path. Default: <input_stem>_headshot.png next to the input file.",
     )
     p.add_argument("--size", type=int, default=800, help="Canvas size (square pixels).")
+    p.add_argument(
+        "--no-plate",
+        action="store_true",
+        help="Disable the circular plate (and its shadow).",
+    )
     p.add_argument("--bg-color", default="#2d6cdf", help="Plate color A (or solid fill) #RRGGBB.")
     p.add_argument(
         "--bg-color-2",
@@ -256,6 +263,7 @@ def main() -> None:
     result = composite(
         cutout,
         size=args.size,
+        plate_enabled=not args.no_plate,
         bg_color=args.bg_color,
         bg_color_2=args.bg_color_2,
         plate_fill=args.plate_fill,
